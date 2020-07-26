@@ -26,7 +26,9 @@ def content_loss(content_weight, content_current, content_original):
     """
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    loss = content_weight *torch.sum((content_current - content_original)**2)
+
+    return loss
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -45,8 +47,15 @@ def gram_matrix(features, normalize=True):
       (optionally normalized) Gram matrices for the N input images.
     """
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    
+    N, C, H, W = features.shape
+    gram = torch.zeros(N,C,C)
+    features = features.reshape(N,C,H*W)
+    for i in range(N):
+          gram[i,:,:] = torch.mm(features[i,:,:], features[i,:,:].t())
+    if normalize:
+          gram = gram / (H * W * C)
+    return gram
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -73,7 +82,11 @@ def style_loss(feats, style_layers, style_targets, style_weights):
     # not be very much code (~5 lines). You will need to use your gram_matrix function.
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    loss = 0
+    for i, n in enumerate(style_layers):
+          feats_gram = gram_matrix(feats[n],normalize=True)
+          loss += (style_weights[i] * torch.sum((feats_gram - style_targets[i])**2))
+    return loss
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -92,9 +105,13 @@ def tv_loss(img, tv_weight):
     # Your implementation should be vectorized and not require any loops!
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    H, W = img.shape[2], img.shape[3]
+    loss = tv_weight * (torch.sum((img[:,:,1:,:] - img[:,:,:-1,:])**2) + torch.sum((img[:,:,:,1:] - img[:,:,:,:-1])**2))
+    
+    return loss
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+
 def preprocess(img, size=512):
     """ Preprocesses a PIL JPG Image object to become a Pytorch tensor
         that is ready to be used as an input into the CNN model.

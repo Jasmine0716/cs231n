@@ -25,23 +25,29 @@ def compute_saliency_maps(X, y, model):
     ###############################################################################
     # TODO: Produce the saliency maps over a batch of images.                     #
     #                                                                             #
-    # 1) Define a gradient tape object and watch input Image variable             #
-    # 2) Compute the “loss” for the batch of given input images.                  #
-    #    - get scores output by the model for the given batch of input images     #
-    #    - use tf.gather_nd or tf.gather to get correct scores                    #
-    # 3) Use the gradient() method of the gradient tape object to compute the     #
-    #    gradient of the loss with respect to the image                           #
+    # 1) Compute the “loss” using the correct scores tensor provided for you.     #
+    #    (We'll combine losses across a batch by summing)                         #
+    # 2) Use tf.gradients to compute the gradient of the loss with respect        #
+    #    to the image (accessible via model.image).                               #
+    # 3) Compute the actual value of the gradient by a call to sess.run().        #
+    #    You will need to feed in values for the placeholders model.image and     #
+    #    model.labels.                                                            #
     # 4) Finally, process the returned gradient to compute the saliency map.      #
     ###############################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    
+    x = tf.convert_to_tensor(X)
+    with tf.GradientTape() as tape:
+        tape.watch(x)
+        scores = model(x)
+        correct_scores = tf.gather_nd(scores, tf.stack((tf.range(X.shape[0]),y), axis = 1))
+    gradients = tape.gradient(correct_scores, x)
+    saliency = np.max( np.abs(gradients), axis = -1)
 
-    pass
-
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
     return saliency
+
 
 def make_fooling_image(X, target_y, model):
     """
@@ -84,7 +90,18 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    X_fooling = tf.convert_to_tensor(X_fooling)
+    for i in range(100):
+        with tf.GradientTape() as tape:
+            tape.watch(X_fooling)
+            scores = model(X_fooling)
+            correct_scores = scores[:,target_y]
+        label = np.argmax(scores)
+        if (label == target_y):
+            break
+        else:
+            gradients = tape.gradient( correct_scores, X_fooling)
+            X_fooling += (learning_rate * gradients / tf.norm(gradients,'euclidean'))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -103,7 +120,14 @@ def class_visualization_update_step(X, model, target_y, l2_reg, learning_rate):
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    X = tf.convert_to_tensor(X)
+    with tf.GradientTape() as tape:
+        tape.watch(X)
+        scores = model(X)
+        correct_scores = scores[:,target_y]
+        correct_scores -= l2_reg * tf.norm(X,'euclidean')
+    gradients = tape.gradient(correct_scores, X)
+    X += learning_rate*gradients
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ############################################################################
